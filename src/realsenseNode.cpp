@@ -8,7 +8,6 @@
 #include <numeric>
 
 static const std::string OPENCV_WINDOW1 = "Image window1";
-static const std::string OPENCV_WINDOW2 = "Image window2";
 
 class ImageConverter
 {
@@ -27,13 +26,11 @@ public:
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     cv::namedWindow(OPENCV_WINDOW1);
-    cv::namedWindow(OPENCV_WINDOW2);
   }
 
   ~ImageConverter()
   {
     cv::destroyWindow(OPENCV_WINDOW1);
-    cv::destroyWindow(OPENCV_WINDOW2);
   }
 
   void depthToCV8UC1(const cv::Mat& float_img, cv::Mat& mono8_img){
@@ -82,7 +79,7 @@ public:
     }
 
     cv::Mat depth_float_img;
-    cv::convertScaleAbs(cv_ptr->image, depth_float_img, 0.03);
+    cv::convertScaleAbs(cv_ptr->image, depth_float_img, 0.1);
     cv::applyColorMap(depth_float_img, depth_float_img, cv::COLORMAP_JET);
 
     // Extract interesting area:
@@ -141,42 +138,29 @@ public:
 
     printf("\n");
 
-    double sum = 0.0;
+    double variance_sum = 0.0;
+    double rms_sum = 0.0;
+    double mean_sum = 0.0;
     int counter = 0;
     for (int i = 0; i < variance.size(); i++){
         if (variance[i] == variance[i]){ // Check for nan
             counter++;
-            sum += variance[i];
+            variance_sum += variance[i];
+            mean_sum += means[i];
         }
     }
 
-    double mean = sum / counter;
-    printf("Mean variance: %.4f\n", mean);
-
-    /*
-    for(int i = 0; i < Y.rows; i++){
-        const double* Mi = Y.ptr<double>(i);
-
-        for(int j = 0; j < Y.cols; j++) {
-            sum += std::max(Mi[j], 0.);
-            printf("%.2f ", Mi[j]);
-        }
-        break;
-    }*/
-
-    //printf("Custom sum: %.2f, proper sum: %.2f, mean: %.2f\n", sum, cv::sum(Y).val[0], cv::mean(Y));
-    //printf("Proper sum: %.2f, mean: %.2f\n", cv::sum(depth_float_img).val[0], cv::mean(depth_float_img));
-    //printf("\n");
-
-    //printf("rows: %.2f, cols: %.2f\n", rows, cols);
-    //printf("p1: (%.2f, %.2f)\n", cols/2.0 - width/2.0, rows/2.0 - height/2.0);
-    //printf("p2: (%.2f, %.2f)\n", cols/2.0 + width/2.0, rows/2.0 + height/2.0);
+    double meanVariance = variance_sum / counter;
+    printf("Mean variance: %.4f, Mean means: %.4f, Normalized variance: %.4f, Normalized SD: %.2f\n",
+            meanVariance,
+            mean_sum / counter ,
+            ((meanVariance * 163.2) + 840.0) / (mean_sum / counter),
+            (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)) * (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)));
 
     cv::rectangle(depth_float_img, cv::Point(cols/2.0 - width/2.0, rows/2.0 - height/2.0), cv::Point(cols/2.0 + width/2.0, rows/2.0 + height/2.0), CV_RGB(255,0,0));
 
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW1, depth_float_img);
-    cv::imshow(OPENCV_WINDOW2, Y);
     cv::waitKey(3);
 
     // Output modified video stream
