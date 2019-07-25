@@ -21,8 +21,7 @@ public:
     : it_(nh_)
   {
     // Subscrive to input video feed and publish output video feed
-    image_sub_ = it_.subscribe("/camera/depth/image_rect_raw", 1,
-      &ImageConverter::imageCb, this);
+    image_sub_ = it_.subscribe("/dyret/sensor/camera/depth", 1,&ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
 
     cv::namedWindow(OPENCV_WINDOW1);
@@ -96,63 +95,87 @@ public:
     //std::string ty =  type2str( Y.type() );
     //printf("Matrix: %s %dx%d \n", ty.c_str(), Y.cols, Y.rows );
 
-    std::array<float, height> sums;
-    std::array<float, height> means;
-    std::array<float, height> variance;
+    std::vector<float> sums;
+    std::vector<float> means;
+    std::vector<float> variances;
+    std::vector<float> SD;
 
     for(int i=0; i<Y.rows; i++) { // For each line:
-    //for(int i=0; i < 10; i++) { // DEBUG
-        int counter = 0;
+    //for(int i=0; i<50; i++) { // For each line:
+        int colCounter = 0;
 
         // Get sum:
-        sums[i] = 0.0;
+        double sum = 0.0;
+
         for (int j = 0; j < Y.cols; j++) {
             uint16_t value = Y.at<uint16_t>(i, j);
 
-            if (value > 0) {
-              sums[i] += value;
-              counter++;
+            if (value > 0 && value < 1000) {
+              sum += value;
+              colCounter++;
+            }
+
+        }
+
+        if (colCounter > 0) { // Only calculate if we have valid points on the line
+            sums.push_back(sum);
+
+            // Calculate mean:
+            double lineMean = sum / (double) colCounter;
+            means.push_back(lineMean);
+
+            double variance = 0.0;
+
+            for (int j = 0; j < Y.cols; j++) {
+                uint16_t value = Y.at<uint16_t>(i, j);
+
+                if (value > 0 && value < 1000) { // Valid pixel
+
+                    variance += ((float(value) - lineMean) * (float(value) - lineMean));
+                }
+
+                if (variance != variance) { // Check for nan
+                    printf("Variance nan: %.4f\n", variance);
+                }
+
+                variance /= colCounter;
+                variances.push_back(variance);
+                SD.push_back(sqrt(variance));
+
             }
         }
 
-        // Calculate mean:
-        means[i] = sums[i] / counter;
-
-        variance[i] = 0.0;
-        counter = 0;
-
-        for (int j = 0; j < Y.cols; j++) {
-          uint16_t value = Y.at<uint16_t>(i, j);
-
-          if (value > 0) {
-              variance[i] += (value - means[i]) * (value - means[i]);
-              counter++;
-          }
-
-          variance[i] /= counter;
-
-        }
-
-        //printf("Sum: %.2f, Mean: %.2f, Variance: %.2f, Counter: %d\n", sums[i], means[i], variance[i], counter);
     }
 
     printf("\n");
 
     double variance_sum = 0.0;
+    double SD_sum = 0.0;
     double rms_sum = 0.0;
     double mean_sum = 0.0;
     int counter = 0;
-    for (int i = 0; i < variance.size(); i++){
-        if (variance[i] == variance[i]){ // Check for nan
+    for (int i = 0; i < variances.size(); i++){
+        if (variances[i] == variances[i]){ // Check for nan
             counter++;
-            variance_sum += variance[i];
+            variance_sum += variances[i];
+            SD_sum += SD[i];
             mean_sum += means[i];
         }
     }
 
+    // Get median variance
+    std::vector<float> varianceCopy = variances;
+
+    std::sort(std::begin(varianceCopy), std::end(varianceCopy));
+
+    double varianceMedian = varianceCopy[(int) varianceCopy.size()/2];
+
     double meanVariance = variance_sum / counter;
-    printf("Mean variance: %.4f, Mean means: %.4f, Normalized variance: %.4f, Normalized SD: %.2f\n",
+    double meanSD = SD_sum / counter;
+    printf("Mean variance: %.4f, median variance: %.4f, mean SD: %.4f, Mean means: %.4f, Normalized variance: %.4f, Normalized SD: %.2f\n",
             meanVariance,
+            varianceMedian,
+            meanSD,
             mean_sum / counter ,
             ((meanVariance * 163.2) + 840.0) / (mean_sum / counter),
             (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)) * (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)));
