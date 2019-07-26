@@ -15,11 +15,20 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   image_transport
+  pcl_ros
+  roscpp
+  sensor_msgs
+  visualization_msgs
+  dynamic_reconfigure
 )
 
 find_package(OpenCV)
 
 find_package(PCL REQUIRED)
+
+generate_dynamic_reconfigure_options(
+    cfg/algorithmParameters.cfg
+)
 
 catkin_package(
   CATKIN_DEPENDS message_runtime
@@ -43,3 +52,5 @@ add_executable(pointCloudNode
 target_link_libraries(pointCloudNode ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_dependencies(pointCloudNode ${catkin_EXPORTED_TARGETS})
 
+add_executable(pointCloudPlaneFitter src/pointCloudPlaneFitter.cpp)
+target_link_libraries(pointCloudPlaneFitter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
