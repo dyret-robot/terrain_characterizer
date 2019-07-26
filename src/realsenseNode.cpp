@@ -9,6 +9,8 @@
 
 static const std::string OPENCV_WINDOW1 = "Image window1";
 
+std::vector<float> meanVariances;
+
 class ImageConverter
 {
   ros::NodeHandle nh_;
@@ -79,6 +81,8 @@ public:
 
     cv::Mat depth_float_img;
     cv::convertScaleAbs(cv_ptr->image, depth_float_img, 0.1);
+
+
     cv::applyColorMap(depth_float_img, depth_float_img, cv::COLORMAP_JET);
 
     // Extract interesting area:
@@ -172,13 +176,32 @@ public:
 
     double meanVariance = variance_sum / counter;
     double meanSD = SD_sum / counter;
-    printf("Mean variance: %.4f, median variance: %.4f, mean SD: %.4f, Mean means: %.4f, Normalized variance: %.4f, Normalized SD: %.2f\n",
+
+    meanVariances.push_back(meanVariance);
+
+    double meanVarianceSum = 0.0;
+    for (int i = 0; i < meanVariances.size(); i++){
+        meanVarianceSum += meanVariances[i];
+    }
+    double meanMeanVariance = meanVarianceSum / meanVariances.size();
+
+    double meanVarianceSD = 0.0;
+    for (int i = 0; i < meanVariances.size(); i++){
+      meanVarianceSD += sqrt((meanMeanVariance - meanVariances[i]) * (meanMeanVariance - meanVariances[i]));
+    }
+
+    meanVarianceSD /= meanVariances.size();
+
+    printf("Mean variance: %.4f, Whole run: %.5f +- %.5f\n",
             meanVariance,
-            varianceMedian,
+            meanMeanVariance,
+            meanVarianceSD);
+
+           /* varianceMedian,
             meanSD,
             mean_sum / counter ,
             ((meanVariance * 163.2) + 840.0) / (mean_sum / counter),
-            (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)) * (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)));
+            (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)) * (((meanVariance * 163.2) + 840.0) / (mean_sum / counter)));*/
 
     cv::rectangle(depth_float_img, cv::Point(cols/2.0 - width/2.0, rows/2.0 - height/2.0), cv::Point(cols/2.0 + width/2.0, rows/2.0 + height/2.0), CV_RGB(255,0,0));
 
