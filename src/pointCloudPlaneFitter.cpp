@@ -18,7 +18,7 @@
 
 #include "terrain_characterizer/algorithmParametersConfig.h"
 
-double point2planedistnace(pcl::PointXYZ pt, pcl::ModelCoefficients::Ptr coefficients){
+double point2planedistance(pcl::PointXYZ pt, pcl::ModelCoefficients::Ptr coefficients){
     double f1 = fabs(coefficients->values[0]*pt.x+coefficients->values[1]*pt.y+coefficients->values[2]*pt.z+coefficients->values[3]);
     double f2 = sqrt(pow(coefficients->values[0],2)+pow(coefficients->values[1],2)+pow(coefficients->values[2],2));
     return f1/f2;
@@ -120,9 +120,9 @@ public:
 
         // Create dynamic reconfigure
         drCallback = boost::bind( &pointCloudPlaneFitter::updateParameters, this, _1, _2);
-        dRserver.setCallback(drCallback);
+        drServer.setCallback(drCallback);
 
-        // Create colors pallete
+        // Create colors palette
         createColors();
 
         // Inform initialized
@@ -141,7 +141,7 @@ public:
         // Convert to pcl point cloud
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_msg (new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*msg,*cloud_msg);
-        ROS_DEBUG("%s: new ponitcloud (%i,%i)(%zu)",_name.c_str(),cloud_msg->width,cloud_msg->height,cloud_msg->size());
+        ROS_DEBUG("%s: new pointcloud (%i,%i)(%zu)",_name.c_str(),cloud_msg->width,cloud_msg->height,cloud_msg->size());
 
         // Filter cloud
         pcl::PassThrough<pcl::PointXYZ> pass;
@@ -180,7 +180,7 @@ public:
             pcl::PointXYZ pt = cloud->points[inliers->indices[i]];
 
             // Compute distance
-            double d = point2planedistnace(pt,coefficients)*1000;// mm
+            double d = point2planedistance(pt,coefficients)*1000;// mm
             err.push_back(d);
 
             // Update statistics
@@ -203,7 +203,7 @@ public:
                 // Get Point
                 pcl::PointXYZ pt = cloud->points[inliers->indices[i]];
 
-                // Copy point to noew cloud
+                // Copy point to new cloud
                 pcl::PointXYZRGB pt_color;
                 pt_color.x = pt.x;
                 pt_color.y = pt.y;
@@ -294,7 +294,7 @@ private:
     std::vector<Color> colors;
 
     // Dynamic reconfigure
-    dynamic_reconfigure::Server<terrain_characterizer::algorithmParametersConfig> dRserver;
+    dynamic_reconfigure::Server<terrain_characterizer::algorithmParametersConfig> drServer;
     dynamic_reconfigure::Server<terrain_characterizer::algorithmParametersConfig>::CallbackType drCallback;
 };
 
