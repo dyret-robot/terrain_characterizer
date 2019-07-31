@@ -22,8 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 
-find_package(OpenCV)
-
 find_package(PCL REQUIRED)
 
 generate_dynamic_reconfigure_options(
@@ -36,21 +34,8 @@ catkin_package(
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
-
-add_executable(realsenseNode
-               src/realsenseNode.cpp
-              )
-target_link_libraries(realsenseNode ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(realsenseNode ${catkin_EXPORTED_TARGETS})
-
-add_executable(pointCloudNode
-               src/pointCloudNode.cpp
-              )
-target_link_libraries(pointCloudNode ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-add_dependencies(pointCloudNode ${catkin_EXPORTED_TARGETS})
 
 add_executable(pointCloudPlaneFitter src/pointCloudPlaneFitter.cpp)
 target_link_libraries(pointCloudPlaneFitter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
