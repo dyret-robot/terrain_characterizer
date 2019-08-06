@@ -112,9 +112,9 @@ public:
         // Subscriber
         _subs = _nh.subscribe("/dyret/sensor/camera/pointcloud",1,&pointCloudPlaneFitter::pointCloudCb,this);
 
+        _max_distance = 0.03; // 30mm
+
         // Get parameters
-        ros::param::param<double>("~max_distance",_max_distance,0.005);
-        ros::param::param<double>("~min_percentage",_min_percentage,5);
         ros::param::param<bool>("~color_pc_with_error",_color_pc_with_error,false);
         ros::param::param<bool>("~enable_sending",_enable_sending,false);
 
@@ -130,8 +130,6 @@ public:
     }
 
     void updateParameters(terrain_characterizer::algorithmParametersConfig& config, uint32_t level){
-        _max_distance = config.max_distance/1000;
-        _min_percentage = config.min_percentage_of_points;
         _color_pc_with_error = config.paint_with_error;
         _enable_sending = config.enable_sending;
     }
@@ -285,7 +283,6 @@ private:
     ros::Subscriber _subs;
 
     // Algorithm parameters
-    double _min_percentage;
     double _max_distance;
     bool _color_pc_with_error;
     bool _enable_sending;
