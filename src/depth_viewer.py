@@ -41,6 +41,9 @@ class image_converter:
     cv_image_cropped = cv_image[rows/2 - height/2 : rows/2 + height/2, cols/2 - width/2 : cols/2 + width/2]
     cv_image_cropped[cv_image_cropped == 65535] = 0
 
+    # Discard the top percent of points
+    cv_image_cropped[cv_image_cropped > np.percentile(cv_image_cropped, 99)] = 0
+
     points = []
     distances = []
 
