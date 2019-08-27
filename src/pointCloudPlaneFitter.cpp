@@ -109,6 +109,7 @@ public:
                                 terrain_characterizer::featureLoggingService::Response &res) {
         if (req.logPath.empty()){
             if (_logFile.is_open()){
+                ROS_INFO("Closing file and stopping logging");
                 _logFile.close();
             } else {
                 ROS_ERROR("Tried closing file that is not open");
@@ -117,6 +118,7 @@ public:
             if (!_logFile.is_open()) {
                 _logFile.open(req.logPath.c_str());
                 firstPrint = true;
+                ROS_INFO("Starting to log to %s", req.logPath.c_str());
             } else {
                 ROS_ERROR("Tried opening file that is already open");
             }
@@ -161,6 +163,15 @@ public:
         _enable_sending = config.enable_sending;
     }
 
+    double getPercentile(std::vector<double> vector, float percentile){
+        size_t size = vector.size();
+
+        sort(vector.begin(), vector.end());
+
+        return vector[int(size * percentile/100.0)];
+
+    }
+
     void pointCloudCb(const sensor_msgs::PointCloud2::ConstPtr &msg){
 
         // Convert to pcl point cloud
@@ -199,6 +210,7 @@ public:
         double max_error(0);
         double min_error(100000);
         std::vector<double> err;
+
         for (int i=0;i<inliers->indices.size();i++){
 
             // Get Point
@@ -274,7 +286,7 @@ public:
                 _logFile << "\n";
             }
 
-            _logFile << std::to_string(mean_error) << ", " << std::to_string(sigma);
+            _logFile << std::to_string(mean_error) << ", " << std::to_string(sigma) << ", " << getPercentile(err, 50) << ", " << getPercentile(err, 60) << ", " << getPercentile(err, 70) << ", " << getPercentile(err, 80) << ", " << getPercentile(err, 90);
         }
 
         if (_enable_sending) {
