@@ -22,6 +22,13 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 
+add_service_files(
+  FILES
+  featureLoggingService.srv
+)
+
+generate_messages()
+
 find_package(PCL REQUIRED)
 
 generate_dynamic_reconfigure_options(

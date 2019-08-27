@@ -1,5 +1,8 @@
 // Adapted from https://github.com/apalomer/plane_fitter
 
+#include <iostream>
+#include <fstream>
+
 // ROS
 #include <ros/ros.h>
 #include <ros/publisher.h>
@@ -17,6 +20,7 @@
 #include <pcl/filters/passthrough.h>
 
 #include "terrain_characterizer/algorithmParametersConfig.h"
+#include "terrain_characterizer/featureLoggingService.h"
 
 double point2planedistance(pcl::PointXYZ pt, pcl::ModelCoefficients::Ptr coefficients){
     double f1 = fabs(coefficients->values[0]*pt.x+coefficients->values[1]*pt.y+coefficients->values[2]*pt.z+coefficients->values[3]);
@@ -101,6 +105,26 @@ public:
         initialize();
     }
 
+    bool featureLoggingCallback(terrain_characterizer::featureLoggingService::Request  &req,
+                                terrain_characterizer::featureLoggingService::Response &res) {
+        if (req.logPath.empty()){
+            if (_logFile.is_open()){
+                _logFile.close();
+            } else {
+                ROS_ERROR("Tried closing file that is not open");
+            }
+        } else {
+            if (!_logFile.is_open()) {
+                _logFile.open(req.logPath.c_str());
+                firstPrint = true;
+            } else {
+                ROS_ERROR("Tried opening file that is already open");
+            }
+        }
+
+        return true;
+    }
+
     void initialize(){
 
         // Get node name
@@ -111,6 +135,9 @@ public:
 
         // Subscriber
         _subs = _nh.subscribe("/dyret/sensor/camera/pointcloud",1,&pointCloudPlaneFitter::pointCloudCb,this);
+
+        // Service
+        _featureLoggingService = _nh.advertiseService("/dyret/pointCloudPlaneFitter/featureLogging", &pointCloudPlaneFitter::featureLoggingCallback, this);
 
         _max_distance = 0.03; // 30mm
 
@@ -236,8 +263,19 @@ public:
                  coefficients->values[2],(coefficients->values[3]>=0?"+":""),
                  coefficients->values[3],
                  inliers->indices.size(),original_size);*/
-        ROS_INFO("%s: mean error: %f(mm), standard deviation: %f (mm), max error: %f(mm)",_name.c_str(),mean_error,sigma,max_error);
-        ROS_INFO("%s: Using %i of %i points",_name.c_str(), inliers->indices.size(), original_size);
+
+        //ROS_INFO("%s: me: %.2f(mm), sd: %.2f (mm), %.1f%% of points",_name.c_str(),mean_error,sigma,(double(inliers->indices.size()) / double(original_size))*100.0);
+
+        if (_logFile.is_open()){
+
+            if (firstPrint){
+                firstPrint = false;
+            } else {
+                _logFile << "\n";
+            }
+
+            _logFile << std::to_string(mean_error) << ", " << std::to_string(sigma);
+        }
 
         if (_enable_sending) {
             // Publish points
@@ -282,10 +320,17 @@ private:
     // Subscriber
     ros::Subscriber _subs;
 
+    // Service
+    ros::ServiceServer _featureLoggingService;
+
     // Algorithm parameters
     double _max_distance;
     bool _color_pc_with_error;
     bool _enable_sending;
+
+    // Logging
+    std::ofstream _logFile;
+    bool firstPrint;
 
     // Colors
     std::vector<Color> colors;

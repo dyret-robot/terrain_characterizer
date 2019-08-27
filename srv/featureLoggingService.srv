@@ -1,0 +1,5 @@
+# Path to the log file. The file is closed and logging stopped if this is empty
+string logPath
+
+---
+
