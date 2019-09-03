@@ -111,13 +111,15 @@ public:
             if (_logFile.is_open()){
                 ROS_INFO("Closing file and stopping logging");
                 _logFile.close();
+                _detailedLogFile.close();
             } else {
                 ROS_ERROR("Tried closing file that is not open");
             }
         } else {
             if (!_logFile.is_open()) {
                 _logFile.open(req.logPath.c_str());
-                firstPrint = true;
+                _detailedLogFile.open((req.logPath.substr(0, req.logPath.size()-4) + "_errors.csv").c_str());
+                _firstPrint = true;
                 ROS_INFO("Starting to log to %s", req.logPath.c_str());
             } else {
                 ROS_ERROR("Tried opening file that is already open");
@@ -141,7 +143,7 @@ public:
         // Service
         _featureLoggingService = _nh.advertiseService("/dyret/pointCloudPlaneFitter/featureLogging", &pointCloudPlaneFitter::featureLoggingCallback, this);
 
-        _max_distance = 0.03; // 30mm
+        _max_distance = 0.035; // 20mm
 
         // Get parameters
         ros::param::param<bool>("~color_pc_with_error",_color_pc_with_error,false);
@@ -207,6 +209,7 @@ public:
 
         // Iterate inliers to get error
         double mean_error(0);
+        double MSE(0);
         double max_error(0);
         double min_error(100000);
         std::vector<double> err;
@@ -222,11 +225,14 @@ public:
 
             // Update statistics
             mean_error += d;
+            MSE += pow(d, 2);
             if (d>max_error) max_error = d;
             if (d<min_error) min_error = d;
 
         }
-        mean_error/=inliers->indices.size();
+
+        mean_error /= inliers->indices.size();
+        MSE /= inliers->indices.size();
 
         // Compute Standard deviation
         ColorMap cm(min_error,max_error);
@@ -280,13 +286,28 @@ public:
 
         if (_logFile.is_open()){
 
-            if (firstPrint){
-                firstPrint = false;
+            if (_firstPrint){
+                _logFile << "mean, mse, sd, 50, 60, 70, 80, 90""\n";
+                _firstPrint = false;
             } else {
                 _logFile << "\n";
             }
 
-            _logFile << std::to_string(mean_error) << ", " << std::to_string(sigma) << ", " << getPercentile(err, 50) << ", " << getPercentile(err, 60) << ", " << getPercentile(err, 70) << ", " << getPercentile(err, 80) << ", " << getPercentile(err, 90);
+            _logFile << std::to_string(mean_error) << ", "
+                     << std::to_string(MSE) << ", "
+                     << std::to_string(sigma) << ", "
+                     << getPercentile(err, 50) << ", "
+                     << getPercentile(err, 60) << ", "
+                     << getPercentile(err, 70) << ", "
+                     << getPercentile(err, 80) << ", "
+                     << getPercentile(err, 90);
+
+            for (int i = 0; i < err.size(); i++){
+                if (i != 0) _detailedLogFile << ", ";
+                _detailedLogFile << std::to_string(err[i]);
+            }
+            _detailedLogFile << "\n";
+
         }
 
         if (_enable_sending) {
@@ -342,7 +363,8 @@ private:
 
     // Logging
     std::ofstream _logFile;
-    bool firstPrint;
+    std::ofstream _detailedLogFile;
+    bool _firstPrint;
 
     // Colors
     std::vector<Color> colors;

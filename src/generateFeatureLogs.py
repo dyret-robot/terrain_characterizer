@@ -35,11 +35,13 @@ for bagFile in progressbar.progressbar(bagFiles):
     rospy.wait_for_service('/dyret/pointCloudPlaneFitter/featureLogging')
 
     try:
-        featureLogging = rospy.ServiceProxy('/dyret/pointCloudPlaneFitter/featureLogging', featureLoggingService)
+        featureLogging_pointCloud = rospy.ServiceProxy('/dyret/pointCloudPlaneFitter/featureLogging', featureLoggingService)
+        featureLogging_optoForce = rospy.ServiceProxy('/dyret/optoforceFeatureExtractor/featureLogging', featureLoggingService)
     except rospy.ServiceException, e:
         print("Service call failed: %s"%e)
 
-    startLogging(featureLogging, bagFile.replace(".bag", "_features.csv"))
+    startLogging(featureLogging_pointCloud, bagFile.replace(".bag", "_features_pc.csv"))
+    startLogging(featureLogging_optoForce, bagFile.replace(".bag", "_features_f.csv"))
 
     # Play bag file
     FNULL = open(os.devnull, 'w')
@@ -47,5 +49,6 @@ for bagFile in progressbar.progressbar(bagFiles):
     process.wait()
 
     # Stop logging
-    stopLogging(featureLogging)
+    stopLogging(featureLogging_pointCloud)
+    stopLogging(featureLogging_optoForce)
 
