@@ -22,6 +22,8 @@ public:
         if (req.logPath.empty()){
             if (_logFile.is_open()){
                 ROS_INFO("Closing file and stopping logging");
+                for (int i = 0; i < 4; i++) _forceMeasurements[i].clear();
+
                 _logFile.close();
             } else {
                 ROS_ERROR("Tried closing file that is not open");
@@ -56,53 +58,67 @@ public:
         _sub_optoforce[2] = _nh.subscribe<geometry_msgs::WrenchStamped>("/dyret/sensor/contact/fl", 100, boost::bind(&optoforceFeatureExtractor::optoforceCallback, this, _1, "fl", 0));
         _sub_optoforce[3] = _nh.subscribe<geometry_msgs::WrenchStamped>("/dyret/sensor/contact/fr", 100, boost::bind(&optoforceFeatureExtractor::optoforceCallback, this, _1, "fr", 1));
 
+        receivedMeasurement = {false, false, false, false};
+
         // Inform initialized
         ROS_INFO("%s: node initialized.",_name.c_str());
     }
 
     void publishFeature(){
-
-
         std_msgs::Float64MultiArray msg;
 
-        // set up dimensions
-        msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
-        msg.layout.dim[0].size = 4;
-        msg.layout.dim[0].stride = 1;
-        msg.layout.dim[0].label = "x"; // or whatever name you typically use to index vec1
+        if (!_forceMeasurements[0].empty() && !_forceMeasurements[1].empty() && !_forceMeasurements[2].empty() && !_forceMeasurements[3].empty()) {
 
-        // copy in the data
-        msg.data.clear();
+            // set up dimensions
+            msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
+            msg.layout.dim[0].size = 4;
+            msg.layout.dim[0].stride = 1;
+            msg.layout.dim[0].label = "x"; // or whatever name you typically use to index vec1
 
-        for (int i = 0; i < 4; i++) msg.data.push_back(_forceMeasurements[i]);
+            // copy in the data
+            msg.data.clear();
 
-        _pub_feature.publish(msg);
+            for (int i = 0; i < 4; i++) msg.data.push_back(*max_element(std::begin(_forceMeasurements[i]), std::end(_forceMeasurements[i])));
 
+            _pub_feature.publish(msg);
 
-        if (_logFile.is_open()){
+            if (_logFile.is_open()) {
 
-            if (_firstPrint){
-                _logFile << "leg0, leg1, leg2, leg3\n";
-                _firstPrint = false;
-            } else {
-                _logFile << "\n";
+                if (_firstPrint) {
+                    _logFile << "leg0, leg1, leg2, leg3\n";
+                    _firstPrint = false;
+                } else {
+                    _logFile << "\n";
+                }
+
+                _logFile << std::to_string(msg.data[0]) << ", "
+                         << std::to_string(msg.data[1]) << ", "
+                         << std::to_string(msg.data[2]) << ", "
+                         << std::to_string(msg.data[3]);
             }
 
-            _logFile << std::to_string(_forceMeasurements[0]) << ", "
-                     << std::to_string(_forceMeasurements[1]) << ", "
-                     << std::to_string(_forceMeasurements[2]) << ", "
-                     << std::to_string(_forceMeasurements[3]);
-
         }
-
     }
 
     void optoforceCallback(const geometry_msgs::WrenchStamped::ConstPtr &msg, const std::string &topic, int legIndex) {
         auto forceSum = (float) (fabs(msg->wrench.force.x) + fabs(msg->wrench.force.y) + fabs(msg->wrench.force.z));
 
-        _forceMeasurements[legIndex] = forceSum;
+        _forceMeasurements[legIndex].insert(_forceMeasurements[legIndex].begin(), forceSum);
 
-        if (legIndex == 3) publishFeature();
+        if (_forceMeasurements[legIndex].size() > numberOfValuesToKeep){
+            _forceMeasurements[legIndex].pop_back();
+        }
+
+        receivedMeasurement[legIndex] = true;
+
+        if (receivedMeasurement[0] &&
+            receivedMeasurement[1] &&
+            receivedMeasurement[2] &&
+            receivedMeasurement[3]){
+
+            receivedMeasurement = {false, false, false, false};
+            publishFeature();
+        }
     }
 
     void spin(){
@@ -129,7 +145,9 @@ private:
     bool _firstPrint;
 
     // Other
-    std::array<float, 4> _forceMeasurements;
+    std::array<std::vector<double>, 4> _forceMeasurements;
+    int numberOfValuesToKeep = 300;
+    std::array<bool, 4> receivedMeasurement;
 
 };
 
