@@ -46,6 +46,9 @@ include_directories(include
 
 add_executable(pointCloudPlaneFitter src/pointCloudPlaneFitter.cpp)
 target_link_libraries(pointCloudPlaneFitter ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_dependencies(pointCloudPlaneFitter ${catkin_EXPORTED_TARGETS})
 
 add_executable(optoforceFeatureExtractor src/optoforceFeatureExtractor.cpp)
 target_link_libraries(optoforceFeatureExtractor ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_dependencies(optoforceFeatureExtractor ${catkin_EXPORTED_TARGETS})
+
