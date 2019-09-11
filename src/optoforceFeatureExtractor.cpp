@@ -117,7 +117,8 @@ public:
             receivedMeasurement[3]){
 
             receivedMeasurement = {false, false, false, false};
-            publishFeature();
+
+            if (_forceMeasurements[legIndex].size() == numberOfValuesToKeep) publishFeature();
         }
     }
 
