@@ -293,14 +293,19 @@ public:
                 _logFile << "\n";
             }
 
-            _logFile << std::to_string(mean_error) << ", "
-                     << std::to_string(MSE) << ", "
-                     << std::to_string(sigma) << ", "
-                     << getPercentile(err, 50) << ", "
-                     << getPercentile(err, 60) << ", "
-                     << getPercentile(err, 70) << ", "
-                     << getPercentile(err, 80) << ", "
-                     << getPercentile(err, 90);
+            if (inliers->indices.size() < 250000){
+                _logFile << "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0";
+            } else {
+
+                _logFile << std::to_string(mean_error) << ", "
+                         << std::to_string(MSE) << ", "
+                         << std::to_string(sigma) << ", "
+                         << getPercentile(err, 50) << ", "
+                         << getPercentile(err, 60) << ", "
+                         << getPercentile(err, 70) << ", "
+                         << getPercentile(err, 80) << ", "
+                         << getPercentile(err, 90);
+            }
 
             for (int i = 0; i < err.size(); i++){
                 if (i != 0) _detailedLogFile << ", ";
