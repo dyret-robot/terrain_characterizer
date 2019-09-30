@@ -111,14 +111,14 @@ public:
             if (_logFile.is_open()){
                 ROS_INFO("Closing file and stopping logging");
                 _logFile.close();
-                _detailedLogFile.close();
+                //_detailedLogFile.close();
             } else {
                 ROS_ERROR("Tried closing file that is not open");
             }
         } else {
             if (!_logFile.is_open()) {
                 _logFile.open(req.logPath.c_str());
-                _detailedLogFile.open((req.logPath.substr(0, req.logPath.size()-4) + "_errors.csv").c_str());
+                //_detailedLogFile.open((req.logPath.substr(0, req.logPath.size()-4) + "_errors.csv").c_str());
                 _firstPrint = true;
                 ROS_INFO("Starting to log to %s", req.logPath.c_str());
             } else {
@@ -307,11 +307,11 @@ public:
                          << getPercentile(err, 90);
             }
 
-            for (int i = 0; i < err.size(); i++){
+            /*for (int i = 0; i < err.size(); i++){
                 if (i != 0) _detailedLogFile << ", ";
                 _detailedLogFile << std::to_string(err[i]);
             }
-            _detailedLogFile << "\n";
+            _detailedLogFile << "\n";*/
 
         }
 
@@ -368,7 +368,7 @@ private:
 
     // Logging
     std::ofstream _logFile;
-    std::ofstream _detailedLogFile;
+    //std::ofstream _detailedLogFile;
     bool _firstPrint;
 
     // Colors
