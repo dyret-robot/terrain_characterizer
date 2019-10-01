@@ -18,6 +18,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
+#include <std_msgs/Float64MultiArray.h>
 
 #include "terrain_characterizer/algorithmParametersConfig.h"
 #include "terrain_characterizer/featureLoggingService.h"
@@ -134,8 +135,9 @@ public:
         // Get node name
         _name = ros::this_node::getName();
 
-        // Get Publisher read
+        // Publishers
         _pub_inliers = _nh.advertise< sensor_msgs::PointCloud2 >("inliers",2);
+        _pub_feature = _nh.advertise<std_msgs::Float64MultiArray>("/dyret/environment/realsesenseFeature",1);
 
         // Subscriber
         _subs = _nh.subscribe("/dyret/sensor/camera/pointcloud",1,&pointCloudPlaneFitter::pointCloudCb,this);
@@ -171,7 +173,6 @@ public:
         sort(vector.begin(), vector.end());
 
         return vector[int(size * percentile/100.0)];
-
     }
 
     void pointCloudCb(const sensor_msgs::PointCloud2::ConstPtr &msg){
@@ -287,25 +288,41 @@ public:
         if (_logFile.is_open()){
 
             if (_firstPrint){
-                _logFile << "mean, mse, sd, 50, 60, 70, 80, 90""\n";
+                _logFile << "mean, mse, sd\n";
                 _firstPrint = false;
             } else {
                 _logFile << "\n";
             }
 
-            if (inliers->indices.size() < 250000){
-                _logFile << "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0";
+            std_msgs::Float64MultiArray msg;
+
+            // set up dimensions
+            msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
+            msg.layout.dim[0].size = 6;
+            msg.layout.dim[0].stride = 1;
+            msg.layout.dim[0].label = "x";
+
+            // copy in the data
+            msg.data.clear();
+            msg.data.resize(3);
+
+            if (inliers->indices.size() < 50000){
+                _logFile << "0.0, 0.0, 0.0";
+                for (int i = 0; i < msg.data.size(); i++){
+                    msg.data[i] = 0.0;
+                }
             } else {
 
                 _logFile << std::to_string(mean_error) << ", "
                          << std::to_string(MSE) << ", "
-                         << std::to_string(sigma) << ", "
-                         << getPercentile(err, 50) << ", "
-                         << getPercentile(err, 60) << ", "
-                         << getPercentile(err, 70) << ", "
-                         << getPercentile(err, 80) << ", "
-                         << getPercentile(err, 90);
+                         << std::to_string(sigma);
+
+                msg.data[0] = mean_error;
+                msg.data[1] = MSE;
+                msg.data[2] = sigma;
             }
+
+            _pub_feature.publish(msg);
 
             /*for (int i = 0; i < err.size(); i++){
                 if (i != 0) _detailedLogFile << ", ";
@@ -354,6 +371,7 @@ private:
 
     // Publishers
     ros::Publisher _pub_inliers;// Display inliers for each plane
+    ros::Publisher _pub_feature;
 
     // Subscriber
     ros::Subscriber _subs;

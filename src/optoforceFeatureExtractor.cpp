@@ -47,7 +47,7 @@ public:
         _name = ros::this_node::getName();
 
         // Publishers
-        _pub_feature = _nh.advertise<std_msgs::Float64MultiArray>("optoforceFeature",1);
+        _pub_feature = _nh.advertise<std_msgs::Float64MultiArray>("/dyret/environment/optoforceFeature",1);
 
         // Services
         _featureLoggingService = _nh.advertiseService("/dyret/optoforceFeatureExtractor/featureLogging", &optoforceFeatureExtractor::featureLoggingCallback, this);
@@ -71,21 +71,25 @@ public:
 
             // set up dimensions
             msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
-            msg.layout.dim[0].size = 4;
+            msg.layout.dim[0].size = 6;
             msg.layout.dim[0].stride = 1;
             msg.layout.dim[0].label = "x"; // or whatever name you typically use to index vec1
 
             // copy in the data
             msg.data.clear();
 
-            for (int i = 0; i < 4; i++) msg.data.push_back(*max_element(std::begin(_forceMeasurements[i]), std::end(_forceMeasurements[i])));
+            msg.data.resize(6);
+            for (int i = 0; i < 4; i++) msg.data[i] = *max_element(std::begin(_forceMeasurements[i]), std::end(_forceMeasurements[i]));
+
+            msg.data[4] = msg.data[0] + msg.data[1];
+            msg.data[5] = msg.data[0] + msg.data[1] + msg.data[2] + msg.data[3];
 
             _pub_feature.publish(msg);
 
             if (_logFile.is_open()) {
 
                 if (_firstPrint) {
-                    _logFile << "leg0, leg1, leg2, leg3\n";
+                    _logFile << "leg0, leg1, leg2, leg3, front, all\n";
                     _firstPrint = false;
                 } else {
                     _logFile << "\n";
@@ -94,7 +98,9 @@ public:
                 _logFile << std::to_string(msg.data[0]) << ", "
                          << std::to_string(msg.data[1]) << ", "
                          << std::to_string(msg.data[2]) << ", "
-                         << std::to_string(msg.data[3]);
+                         << std::to_string(msg.data[3]) << ", "
+                         << std::to_string(msg.data[0] + msg.data[1]) << ", "
+                         << std::to_string(msg.data[0]+msg.data[1]+msg.data[2]+msg.data[3]);
             }
 
         }
@@ -147,7 +153,7 @@ private:
 
     // Other
     std::array<std::vector<double>, 4> _forceMeasurements;
-    int numberOfValuesToKeep = 300;
+    int numberOfValuesToKeep = 600;
     std::array<bool, 4> receivedMeasurement;
 
 };
