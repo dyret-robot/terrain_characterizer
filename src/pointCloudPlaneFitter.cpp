@@ -306,7 +306,7 @@ public:
             msg.data.clear();
             msg.data.resize(3);
 
-            if (inliers->indices.size() < 50000){
+            if (inliers->indices.size() < 25000){
                 _logFile << "0.0, 0.0, 0.0";
                 for (int i = 0; i < msg.data.size(); i++){
                     msg.data[i] = 0.0;
