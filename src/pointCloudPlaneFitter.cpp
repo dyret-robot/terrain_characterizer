@@ -137,7 +137,7 @@ public:
 
         // Publishers
         _pub_inliers = _nh.advertise< sensor_msgs::PointCloud2 >("inliers",2);
-        _pub_feature = _nh.advertise<std_msgs::Float64MultiArray>("/dyret/environment/realsesenseFeature",1);
+        _pub_feature = _nh.advertise<std_msgs::Float64MultiArray>("/dyret/environment/realsenseFeature",1);
 
         // Subscriber
         _subs = _nh.subscribe("/dyret/sensor/camera/pointcloud",1,&pointCloudPlaneFitter::pointCloudCb,this);
@@ -283,54 +283,58 @@ public:
                  coefficients->values[3],
                  inliers->indices.size(),original_size);*/
 
-        //ROS_INFO("%s: me: %.2f(mm), sd: %.2f (mm), %.1f%% of points",_name.c_str(),mean_error,sigma,(double(inliers->indices.size()) / double(original_size))*100.0);
+        ROS_INFO("%s: me: %lu points, %.2f(mm), mse: %.2f, sd: %.2f (mm), %.1f%% of points",_name.c_str(),inliers->indices.size(),mean_error,MSE,sigma,(double(inliers->indices.size()) / double(original_size))*100.0);
 
-        if (_logFile.is_open()){
-
-            if (_firstPrint){
-                _logFile << "mean, mse, sd\n";
+        if (_logFile.is_open()) {
+            if (_firstPrint) {
+                _logFile << "mean, mse, sd, inliers\n";
                 _firstPrint = false;
             } else {
                 _logFile << "\n";
             }
 
-            std_msgs::Float64MultiArray msg;
-
-            // set up dimensions
-            msg.layout.dim.push_back(std_msgs::MultiArrayDimension());
-            msg.layout.dim[0].size = 6;
-            msg.layout.dim[0].stride = 1;
-            msg.layout.dim[0].label = "x";
-
-            // copy in the data
-            msg.data.clear();
-            msg.data.resize(3);
-
-            if (inliers->indices.size() < 25000){
-                _logFile << "0.0, 0.0, 0.0";
-                for (int i = 0; i < msg.data.size(); i++){
-                    msg.data[i] = 0.0;
-                }
+            if (inliers->indices.size() < 5){
+                _logFile << "0.0, 0.0, 0.0, " << inliers->indices.size();
             } else {
 
                 _logFile << std::to_string(mean_error) << ", "
                          << std::to_string(MSE) << ", "
-                         << std::to_string(sigma);
-
-                msg.data[0] = mean_error;
-                msg.data[1] = MSE;
-                msg.data[2] = sigma;
+                         << std::to_string(sigma) << ", "
+                         << inliers->indices.size();
             }
-
-            _pub_feature.publish(msg);
 
             /*for (int i = 0; i < err.size(); i++){
-                if (i != 0) _detailedLogFile << ", ";
-                _detailedLogFile << std::to_string(err[i]);
-            }
-            _detailedLogFile << "\n";*/
+              if (i != 0) _detailedLogFile << ", ";
+              _detailedLogFile << std::to_string(err[i]);
+          }
+          _detailedLogFile << "\n";*/
 
         }
+
+        std_msgs::Float64MultiArray featureMsg;
+
+        // set up dimensions
+        featureMsg.layout.dim.push_back(std_msgs::MultiArrayDimension());
+        featureMsg.layout.dim[0].size = 4;
+        featureMsg.layout.dim[0].stride = 1;
+        featureMsg.layout.dim[0].label = "x";
+
+        // copy in the data
+        featureMsg.data.clear();
+        featureMsg.data.resize(4);
+
+        if (inliers->indices.size() < 5){
+            for (int i = 0; i < featureMsg.data.size(); i++){
+                featureMsg.data[i] = 0.0;
+            }
+        } else {
+            featureMsg.data[0] = mean_error;
+            featureMsg.data[1] = MSE;
+            featureMsg.data[2] = sigma;
+            featureMsg.data[3] = inliers->indices.size();
+        }
+
+        _pub_feature.publish(featureMsg);
 
         if (_enable_sending) {
             // Publish points
@@ -398,6 +402,8 @@ private:
 };
 
 int main(int argc,char** argv){
+
+    sleep(10);
 
     // Initialize ROS
     ros::init(argc,argv,"pointCloudPlaneFitter");
